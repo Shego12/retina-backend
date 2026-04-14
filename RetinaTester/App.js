@@ -51,7 +51,7 @@ export default function App() {
         });
 
         // Points to your laptop's IP
-        const response = await fetch('http://172.20.12.122:8000/recognize', {
+        const response = await fetch('https://retina-backend-qdsb.onrender.com/recognize', {
           method: 'POST',
           body: formData,
           headers: { 'Content-Type': 'multipart/form-data' },
