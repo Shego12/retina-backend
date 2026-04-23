@@ -61,7 +61,10 @@ async def register_face(uid: str = Form("unknown"), email: str = Form(...), file
         results = DeepFace.represent(img_path=frame_bgr, model_name="Facenet", enforce_detection=True)
         embedding = results[0]["embedding"]
         
+        # 1. Convert to raw floats
         embedding_float = [float(v) for v in embedding]
+        
+        # 2. Create the text string ONLY for the local SQLite database
         embedding_json = json.dumps(embedding_float)
 
         conn = get_db_connection()
@@ -71,13 +74,13 @@ async def register_face(uid: str = Form("unknown"), email: str = Form(...), file
         user_id = cursor.lastrowid
         conn.close()
 
-        # The Shield: Only send to Web if DB actually connected!
+        # THE FIX: Sending raw arrays (embedding_float) to Web Dashboard, NOT text!
         if uid != "unknown" and db is not None:
             user_ref = db.collection("web_users").document(uid)
             user_ref.set({
                 "faceEnrolled": True,
-                "descriptors": [embedding_json],
-                "averageDescriptor": embedding_json,
+                "descriptors": [embedding_float],
+                "averageDescriptor": embedding_float,
                 "email": email,
                 "employeeId": uid[:8].upper()
             }, merge=True)
