@@ -7,6 +7,7 @@ from deepface import DeepFace
 import sqlite3
 import json
 from datetime import datetime
+import os  # <-- NEW: Needed for environment variables
 
 # --- NEW FIREBASE IMPORTS ---
 import firebase_admin
@@ -15,8 +16,16 @@ from firebase_admin import credentials, firestore
 app = FastAPI(title="Retina Face Recognition API")
 
 # --- INITIALIZE FIREBASE (The Bridge to Web) ---
-# Make sure your firebase-key.json is in the same folder!
-cred = credentials.Certificate("firebase-key.json")
+firebase_env = os.environ.get("FIREBASE_JSON")
+
+if firebase_env:
+    # If running on Railway, use the secret cloud variable
+    cred_dict = json.loads(firebase_env)
+    cred = credentials.Certificate(cred_dict)
+else:
+    # If running locally on your laptop, use the file
+    cred = credentials.Certificate("firebase-key.json")
+
 if not firebase_admin._apps:
     firebase_admin.initialize_app(cred)
 db = firestore.client()
