@@ -5,7 +5,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 export default function App() {
   const [permission, requestPermission] = useCameraPermissions();
   const [isScanning, setIsScanning] = useState(false);
-  const [flashColor, setFlashColor] = useState('transparent'); // New: Controls the screen color
+  const [flashColor, setFlashColor] = useState('transparent');
   const cameraRef = useRef(null);
 
   if (!permission) return <View style={styles.container} />;
@@ -20,27 +20,23 @@ export default function App() {
     );
   }
 
-  // The Liveness Flash Sequence
   const triggerLivenessSequence = async () => {
     const colors = ['rgba(255,0,0,0.4)', 'rgba(0,255,0,0.4)', 'rgba(0,0,255,0.4)'];
     
     for (let color of colors) {
       setFlashColor(color);
-      // Wait 150 milliseconds per color flash
       await new Promise(resolve => setTimeout(resolve, 150)); 
     }
-    setFlashColor('transparent'); // Turn flash off
+    setFlashColor('transparent');
   };
 
   const handleRecognize = async () => {
     if (cameraRef.current && !isScanning) {
       setIsScanning(true); 
       
-      // 1. Run the color flash sequence
       await triggerLivenessSequence();
       
       try {
-        // 2. Take the picture right after/during the flash
         const photo = await cameraRef.current.takePictureAsync({ quality: 0.5 });
         
         const formData = new FormData();
@@ -50,8 +46,8 @@ export default function App() {
           name: 'checkin.jpg',
         });
 
-        // Points to your laptop's IP
-        const response = await fetch('https://retina-backend-qdsb.onrender.com/recognize', {
+        // UPDATED TO RAILWAY URL
+        const response = await fetch('https://retina-backend-production.up.railway.app/recognize', {
           method: 'POST',
           body: formData,
           headers: { 'Content-Type': 'multipart/form-data' },
@@ -74,19 +70,14 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      {/* Header Area */}
       <View style={styles.header}>
         <Text style={styles.logo}>RETINA</Text>
         <Text style={styles.subtitle}>Identity Verification System</Text>
       </View>
 
-      {/* Camera Area */}
       <View style={styles.cameraWrapper}>
         <CameraView style={styles.camera} facing="front" ref={cameraRef}>
-          
-          {/* NEW: The Color Flash Overlay */}
           <View style={[StyleSheet.absoluteFillObject, { backgroundColor: flashColor }]} />
-
           <View style={styles.reticleContainer}>
             <View style={[styles.corner, styles.topLeft]} />
             <View style={[styles.corner, styles.topRight]} />
@@ -96,7 +87,6 @@ export default function App() {
         </CameraView>
       </View>
 
-      {/* Footer Area */}
       <View style={styles.footer}>
         <Text style={styles.instructionText}>
           {isScanning ? "Analyzing liveness and biometrics..." : "Align face within the frame"}

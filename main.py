@@ -8,7 +8,19 @@ import sqlite3
 import json
 from datetime import datetime
 
+# --- NEW FIREBASE IMPORTS ---
+import firebase_admin
+from firebase_admin import credentials, firestore
+
 app = FastAPI(title="Retina Face Recognition API")
+
+# --- INITIALIZE FIREBASE (The Bridge to Web) ---
+# Make sure your firebase-key.json is in the same folder!
+cred = credentials.Certificate("firebase-key.json")
+if not firebase_admin._apps:
+    firebase_admin.initialize_app(cred)
+db = firestore.client()
+
 
 def get_db_connection():
     conn = sqlite3.connect("retina.db")
@@ -27,8 +39,9 @@ def calculate_cosine_distance(source, test):
 def read_root():
     return {"message": "Retina API is live!"}
 
+# --- UPDATED REGISTER ENDPOINT (THE BRIDGE) ---
 @app.post("/register")
-async def register_face(uid: str = Form(...), email: str = Form(...), file: UploadFile = File(...)):
+async def register_face(uid: str = Form("unknown"), email: str = Form(...), file: UploadFile = File(...)):
     
     contents = await file.read()
     image = Image.open(io.BytesIO(contents)).convert("RGB")
@@ -40,9 +53,11 @@ async def register_face(uid: str = Form(...), email: str = Form(...), file: Uplo
         results = DeepFace.represent(img_path=frame_bgr, model_name="Facenet", enforce_detection=True)
         embedding = results[0]["embedding"]
         
-        embedding_json = json.dumps(embedding)
+        # Convert embedding to float for Web compatibility
+        embedding_float = [float(v) for v in embedding]
+        embedding_json = json.dumps(embedding_float)
 
-        # Save to Database (Storing the email in the 'name' column)
+        # 1. Save to SQLite (Keeps your Mobile App working perfectly)
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute(
@@ -52,6 +67,17 @@ async def register_face(uid: str = Form(...), email: str = Form(...), file: Uplo
         conn.commit()
         user_id = cursor.lastrowid
         conn.close()
+
+        # 2. THE BRIDGE: Save to Firestore (Makes the account visible to Web Admin!)
+        if uid != "unknown":
+            user_ref = db.collection("web_users").document(uid)
+            user_ref.set({
+                "faceEnrolled": True,
+                "descriptors": [embedding_json],
+                "averageDescriptor": embedding_json,
+                "email": email,
+                "employeeId": uid[:8].upper()
+            }, merge=True)
 
         return {
             "status": "success", 
